@@ -4,6 +4,7 @@ titles and push it as the Primary image for that library (Movies / TV Shows).
 Runs once per invocation; schedule repeat runs with an OS-level scheduler
 (see scripts/register_scheduled_task.ps1 for Windows Task Scheduler)."""
 import base64
+import hashlib
 import logging
 import os
 import random
@@ -26,6 +27,7 @@ log = logging.getLogger("jellyfin-poster")
 POSTER_W, POSTER_H = 500, 750
 GRID_COLS, GRID_ROWS = 5, 2
 MIN_POSTERS = 3
+FETCH_MULTIPLIER = 3  # extra headroom so duplicate-artwork/broken items don't shrink the grid
 
 MEDIA = {
     "movies": {"item_type": "Movie", "label": "MOVIES", "collection_type": "movies"},
@@ -136,7 +138,7 @@ def draw_title_label(image, text):
 def build_collage(media_key, library_item_id):
     info = MEDIA[media_key]
     max_needed = GRID_COLS * GRID_ROWS
-    item_ids = fetch_recent_item_ids(library_item_id, info["item_type"], max_needed)
+    item_ids = fetch_recent_item_ids(library_item_id, info["item_type"], max_needed * FETCH_MULTIPLIER)
     if not item_ids:
         log.warning("No recently added items found for %s, skipping collage", media_key)
         return None
@@ -144,14 +146,22 @@ def build_collage(media_key, library_item_id):
     random.shuffle(item_ids)
 
     posters = []
+    seen_hashes = set()
     for item_id in item_ids:
+        if len(posters) >= max_needed:
+            break
         try:
             content = fetch_item_poster(item_id)
+            content_hash = hashlib.md5(content).hexdigest()
+            if content_hash in seen_hashes:
+                log.info("Skipping item %s, duplicate poster image (same artwork as another item)", item_id)
+                continue
             img = Image.open(BytesIO(content))
             img.load()
             if not is_valid_image(img):
                 log.warning("Poster for item %s looks blank, skipping", item_id)
                 continue
+            seen_hashes.add(content_hash)
             fitted = ImageOps.fit(img.convert("RGBA"), (POSTER_W, POSTER_H), Image.Resampling.LANCZOS)
             posters.append(fitted)
         except Exception as e:
