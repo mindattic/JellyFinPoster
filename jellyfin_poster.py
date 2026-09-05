@@ -12,7 +12,7 @@ from io import BytesIO
 
 import requests
 from dotenv import load_dotenv
-from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps, ImageStat
 
 load_dotenv()
 
@@ -29,6 +29,7 @@ TMDB_IMG_BASE_URL = "https://image.tmdb.org/t/p/w500"
 
 POSTER_W, POSTER_H = 500, 750
 GRID_COLS, GRID_ROWS = 5, 2
+MIN_POSTERS = 3
 
 MEDIA = {
     "movies": {
@@ -76,29 +77,49 @@ def get_font(size):
     return ImageFont.load_default()
 
 
-def fetch_poster_paths(media_key):
-    info = MEDIA[media_key]
-    today = datetime.date.today()
-    start = today - datetime.timedelta(days=DISCOVER_WINDOW_DAYS)
-    url = (
-        f"{TMDB_BASE_URL}/discover/{info['tmdb_endpoint']}"
-        f"?sort_by=vote_average.desc&vote_count.gte={MIN_VOTE_COUNT}"
-        f"&{info['date_field']}.gte={start.isoformat()}&{info['date_field']}.lte={today.isoformat()}"
-        f"&page=1"
-    )
+def _tmdb_get(path, params, error_context):
     headers = {"Authorization": f"Bearer {TMDB_TOKEN}", "accept": "application/json"}
     try:
-        resp = requests.get(url, headers=headers, timeout=20)
+        resp = requests.get(f"{TMDB_BASE_URL}{path}", headers=headers, params=params, timeout=20)
         resp.raise_for_status()
+        return resp.json().get("results", [])
     except requests.RequestException as e:
-        log.error("TMDB discover request failed for %s: %s", media_key, e)
+        log.error("TMDB request failed for %s: %s", error_context, e)
         return []
 
-    results = resp.json().get("results", [])
-    return [item["poster_path"] for item in results[: GRID_COLS * GRID_ROWS] if item.get("poster_path")]
+
+def _discover_poster_paths(media_key, bounded):
+    info = MEDIA[media_key]
+    params = {"sort_by": "vote_average.desc", "vote_count.gte": MIN_VOTE_COUNT, "page": 1}
+    if bounded:
+        today = datetime.date.today()
+        start = today - datetime.timedelta(days=DISCOVER_WINDOW_DAYS)
+        params[f"{info['date_field']}.gte"] = start.isoformat()
+        params[f"{info['date_field']}.lte"] = today.isoformat()
+    results = _tmdb_get(f"/discover/{info['tmdb_endpoint']}", params, f"discover:{media_key}")
+    return [item["poster_path"] for item in results if item.get("poster_path")]
 
 
-def draw_neon_label(image, text):
+def fetch_poster_paths(media_key):
+    max_needed = GRID_COLS * GRID_ROWS
+    paths = _discover_poster_paths(media_key, bounded=True)
+    if len(paths) < max_needed:
+        log.info(
+            "Only %d result(s) in the last %d days for %s, expanding to the full TMDB catalog",
+            len(paths), DISCOVER_WINDOW_DAYS, media_key,
+        )
+        seen = set(paths)
+        extra = _discover_poster_paths(media_key, bounded=False)
+        paths += [p for p in extra if p not in seen]
+    return paths[:max_needed]
+
+
+def is_valid_image(image):
+    stat = ImageStat.Stat(image.convert("RGB"))
+    return max(stat.stddev) > 5  # rejects near-solid (blank/black/white) images
+
+
+def draw_glow_label(image, text):
     draw = ImageDraw.Draw(image)
     font = get_font(300)
     w, h = image.size
@@ -109,7 +130,7 @@ def draw_neon_label(image, text):
     glow = Image.new("RGBA", image.size, (0, 0, 0, 0))
     glow_draw = ImageDraw.Draw(glow)
     for offset in range(20, 0, -4):
-        glow_draw.text((x, y), text, font=font, fill=(0, 0, 0, 160), stroke_width=offset)
+        glow_draw.text((x, y), text, font=font, fill=(255, 255, 255, 160), stroke_width=offset)
     image.paste(glow.filter(ImageFilter.GaussianBlur(12)), (0, 0), glow)
     draw.text((x, y), text, font=font, fill=(255, 255, 255, 255), stroke_width=3, stroke_fill=(0, 0, 0, 255))
 
@@ -125,23 +146,35 @@ def build_collage(media_key):
         try:
             resp = requests.get(TMDB_IMG_BASE_URL + path, timeout=20)
             resp.raise_for_status()
-            img = Image.open(BytesIO(resp.content)).convert("RGBA")
-            posters.append(ImageOps.fit(img, (POSTER_W, POSTER_H), Image.Resampling.LANCZOS))
+            img = Image.open(BytesIO(resp.content))
+            img.load()
+            if not is_valid_image(img):
+                log.warning("Downloaded poster %s looks blank, skipping", path)
+                continue
+            fitted = ImageOps.fit(img.convert("RGBA"), (POSTER_W, POSTER_H), Image.Resampling.LANCZOS)
+            posters.append(fitted)
         except Exception as e:
             log.warning("Skipping poster %s: %s", path, e)
 
-    if not posters:
+    if len(posters) < MIN_POSTERS:
+        log.warning("Only %d usable poster(s) for %s, skipping upload", len(posters), media_key)
         return None
 
-    canvas = Image.new("RGBA", (POSTER_W * GRID_COLS, POSTER_H * GRID_ROWS), (0, 0, 0, 0))
+    rows = -(-len(posters) // GRID_COLS)  # ceil division, so a partial batch doesn't leave dead rows
+    canvas = Image.new("RGBA", (POSTER_W * GRID_COLS, POSTER_H * rows), (0, 0, 0, 0))
     for i, poster in enumerate(posters):
         canvas.paste(poster, ((i % GRID_COLS) * POSTER_W, (i // GRID_COLS) * POSTER_H))
 
-    draw_neon_label(canvas, MEDIA[media_key]["label"])
+    draw_glow_label(canvas, MEDIA[media_key]["label"])
 
     mask = Image.new("L", canvas.size, 0)
     ImageDraw.Draw(mask).rounded_rectangle((0, 0) + canvas.size, radius=60, fill=255)
     canvas.putalpha(mask)
+
+    if not is_valid_image(canvas):
+        log.error("Generated collage for %s looks blank, skipping upload", media_key)
+        return None
+
     return canvas
 
 

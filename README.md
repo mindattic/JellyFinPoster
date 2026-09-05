@@ -27,23 +27,24 @@ staying a static icon.
    ```
    Output is logged to the console and to `jellyfin_poster.log`.
 
-## Running daily automatically
+## Running automatically
 
 The image is uploaded straight to the Jellyfin server over its API, so once
 it's pushed, every client (tablet, phone, browser, TV app) sees the new
 poster immediately — the script just needs to run somewhere with network
 access to `JF_URL`.
 
-On Windows, register a daily Scheduled Task from a PowerShell prompt:
+On Windows, register an hourly Scheduled Task from a PowerShell prompt:
 
 ```
 .\scripts\register_scheduled_task.ps1
 ```
 
-This creates a task named `JellyfinPosterRefresh` that runs daily at
-midnight under your user account, and catches up automatically if the PC
-was asleep or off at that time. Pass `-Time "06:30"` to use a different
-time, or `-PythonExe "C:\path\to\python.exe"` if `python` isn't on PATH for
+This creates a task named `JellyfinPosterRefresh` that runs every hour
+under your user account (starting at midnight by default), and catches up
+automatically if the PC was asleep or off at a scheduled run. Pass
+`-StartTime "06:30"` to change the first run's anchor time, or
+`-PythonExe "C:\path\to\python.exe"` if `python` isn't on PATH for
 scheduled tasks.
 
 To remove it later: `Unregister-ScheduledTask -TaskName JellyfinPosterRefresh`.
