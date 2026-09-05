@@ -89,12 +89,37 @@ Write-Host "Checking dependencies..."
 & $python -m pip install --upgrade pip --quiet --disable-pip-version-check
 & $python -m pip install -r (Join-Path $RepoDir "requirements.txt") --quiet --disable-pip-version-check
 
+function Read-RequiredValue {
+    param([string]$Prompt, [string]$Hint)
+    Write-Host $Hint -ForegroundColor DarkGray
+    do {
+        $value = Read-Host $Prompt
+    } while ([string]::IsNullOrWhiteSpace($value))
+    return $value
+}
+
 if (-not (Test-Path (Join-Path $RepoDir ".env"))) {
     Write-Host ""
-    Write-Host "No .env file found -- copying .env.example to .env."
-    Copy-Item (Join-Path $RepoDir ".env.example") (Join-Path $RepoDir ".env")
-    Write-Host "Fill in TMDB_TOKEN, JF_URL and JF_API_KEY in .env, then re-run Start.bat."
-    exit 1
+    Write-Host "No .env file found -- let's set it up."
+    Write-Host ""
+
+    $tmdbToken = Read-RequiredValue "TMDB_TOKEN" "  Find it at: https://www.themoviedb.org/settings/api (API Read Access Token, v4 auth)"
+    Write-Host ""
+    $jfUrl = Read-RequiredValue "JF_URL" "  Your Jellyfin server's base URL, e.g. http://192.168.1.10:8096"
+    Write-Host ""
+    $jfApiKey = Read-RequiredValue "JF_API_KEY" "  Find it at: Jellyfin Dashboard > Advanced > API Keys (click + to create one)"
+
+    $envLines = @(
+        "TMDB_TOKEN=$tmdbToken"
+        "JF_URL=$jfUrl"
+        "JF_API_KEY=$jfApiKey"
+        "JF_MOVIES_LIBRARY_NAME=Movies"
+        "JF_TV_LIBRARY_NAME=TV Shows"
+        "TMDB_MIN_VOTE_COUNT=30"
+    )
+    Set-Content -Path (Join-Path $RepoDir ".env") -Value $envLines -Encoding utf8
+    Write-Host ""
+    Write-Host ".env created."
 }
 
 Write-Host ""
