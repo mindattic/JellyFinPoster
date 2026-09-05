@@ -50,7 +50,18 @@ MOVIES_LIBRARY_NAME = os.environ.get("JF_MOVIES_LIBRARY_NAME", "Movies")
 TV_LIBRARY_NAME = os.environ.get("JF_TV_LIBRARY_NAME", "TV Shows")
 
 
+FONT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts", "NotoSans.ttf")
+
+
 def get_font(size):
+    if os.path.exists(FONT_PATH):
+        font = ImageFont.truetype(FONT_PATH, size)
+        try:
+            font.set_variation_by_name("Bold")
+        except (AttributeError, OSError):
+            pass  # not a variable font, or variation unsupported -- use default weight
+        return font
+
     for path in (
         "C:\\Windows\\Fonts\\arialbd.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
