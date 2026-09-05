@@ -62,7 +62,6 @@ JF_API_KEY = require_env("JF_API_KEY")
 MOVIES_LIBRARY_NAME = os.environ.get("JF_MOVIES_LIBRARY_NAME", "Movies")
 TV_LIBRARY_NAME = os.environ.get("JF_TV_LIBRARY_NAME", "TV Shows")
 
-DISCOVER_WINDOW_DAYS = int(os.environ.get("TMDB_WINDOW_DAYS", "30"))
 MIN_VOTE_COUNT = int(os.environ.get("TMDB_MIN_VOTE_COUNT", "30"))
 
 
@@ -88,29 +87,42 @@ def _tmdb_get(path, params, error_context):
         return []
 
 
-def _discover_poster_paths(media_key, bounded):
+def _discover_windows():
+    today = datetime.date.today()
+    last_year = today.year - 1
+    return [
+        ("last 30 days", today - datetime.timedelta(days=30), today),
+        ("last 90 days", today - datetime.timedelta(days=90), today),
+        ("this year", today.replace(month=1, day=1), today),
+        ("last year", datetime.date(last_year, 1, 1), datetime.date(last_year, 12, 31)),
+        ("last 5 years", today - datetime.timedelta(days=365 * 5), today),
+        ("last 10 years", today - datetime.timedelta(days=365 * 10), today),
+        ("all time", None, None),
+    ]
+
+
+def _discover_poster_paths(media_key, start, end):
     info = MEDIA[media_key]
     params = {"sort_by": "vote_average.desc", "vote_count.gte": MIN_VOTE_COUNT, "page": 1}
-    if bounded:
-        today = datetime.date.today()
-        start = today - datetime.timedelta(days=DISCOVER_WINDOW_DAYS)
+    if start is not None:
         params[f"{info['date_field']}.gte"] = start.isoformat()
-        params[f"{info['date_field']}.lte"] = today.isoformat()
+        params[f"{info['date_field']}.lte"] = end.isoformat()
     results = _tmdb_get(f"/discover/{info['tmdb_endpoint']}", params, f"discover:{media_key}")
     return [item["poster_path"] for item in results if item.get("poster_path")]
 
 
 def fetch_poster_paths(media_key):
     max_needed = GRID_COLS * GRID_ROWS
-    paths = _discover_poster_paths(media_key, bounded=True)
-    if len(paths) < max_needed:
-        log.info(
-            "Only %d result(s) in the last %d days for %s, expanding to the full TMDB catalog",
-            len(paths), DISCOVER_WINDOW_DAYS, media_key,
-        )
-        seen = set(paths)
-        extra = _discover_poster_paths(media_key, bounded=False)
-        paths += [p for p in extra if p not in seen]
+    seen = set()
+    paths = []
+    for window_name, start, end in _discover_windows():
+        if len(paths) >= max_needed:
+            break
+        new_paths = [p for p in _discover_poster_paths(media_key, start, end) if p not in seen]
+        if new_paths:
+            log.info("Found %d new result(s) for %s in window '%s'", len(new_paths), media_key, window_name)
+        seen.update(new_paths)
+        paths.extend(new_paths)
     return paths[:max_needed]
 
 
@@ -132,7 +144,7 @@ def draw_glow_label(image, text):
     for offset in range(20, 0, -4):
         glow_draw.text((x, y), text, font=font, fill=(255, 255, 255, 160), stroke_width=offset)
     image.paste(glow.filter(ImageFilter.GaussianBlur(12)), (0, 0), glow)
-    draw.text((x, y), text, font=font, fill=(255, 255, 255, 255), stroke_width=3, stroke_fill=(0, 0, 0, 255))
+    draw.text((x, y), text, font=font, fill=(255, 255, 255, 255), stroke_width=10, stroke_fill=(0, 0, 0, 255))
 
 
 def build_collage(media_key):
