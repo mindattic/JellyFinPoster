@@ -5,14 +5,14 @@ will perform the refresh:
 
     .\scripts\register_scheduled_task.ps1
 
-The task runs as the current user, only when logged on. If the PC is
-asleep or off at a scheduled run, it catches up as soon as the PC is next
-available (StartWhenAvailable).
+The task runs as the current user, only when logged on, with no console
+window popping up (pythonw.exe). If the PC is asleep or off at a scheduled
+run, it catches up as soon as the PC is next available (StartWhenAvailable).
 #>
 param(
     [string]$TaskName = "JellyfinPosterRefresh",
     [string]$StartTime = "00:00",
-    [string]$PythonExe = "python"
+    [string]$PythonExe = "pythonw"
 )
 
 $ProjectDir = Split-Path -Parent $PSScriptRoot

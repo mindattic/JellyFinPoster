@@ -18,11 +18,10 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps, ImageStat
 load_dotenv()
 
 LOG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "jellyfin_poster.log")
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler(), logging.FileHandler(LOG_PATH, encoding="utf-8")],
-)
+log_handlers = [logging.FileHandler(LOG_PATH, encoding="utf-8")]
+if sys.stdout is not None:  # pythonw.exe has no console, so sys.stdout/stderr are None
+    log_handlers.append(logging.StreamHandler())
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", handlers=log_handlers)
 log = logging.getLogger("jellyfin-poster")
 
 TMDB_BASE_URL = "https://api.themoviedb.org/3"
@@ -138,13 +137,15 @@ def draw_glow_label(image, text):
     draw = ImageDraw.Draw(image)
     font = get_font(300)
     w, h = image.size
-    bbox = draw.textbbox((0, 0), text, font=font)
+    bbox = draw.textbbox((0, 0), text, font=font, stroke_width=10)
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-    x, y = (w - tw) // 2, (h - th) // 2
+    text_top = (h - th) // 2
+    x = (w - tw) // 2 - bbox[0]
+    y = text_top - bbox[1]
 
     banner_pad = 40
     banner = Image.new("RGBA", image.size, (0, 0, 0, 0))
-    ImageDraw.Draw(banner).rectangle([0, y - banner_pad, w, y + th + banner_pad], fill=(0, 0, 0, 120))
+    ImageDraw.Draw(banner).rectangle([0, text_top - banner_pad, w, text_top + th + banner_pad], fill=(0, 0, 0, 120))
     image.paste(banner, (0, 0), banner)
 
     glow = Image.new("RGBA", image.size, (0, 0, 0, 0))
