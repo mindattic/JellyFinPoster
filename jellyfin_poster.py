@@ -137,7 +137,7 @@ def draw_title_label(image, text):
     draw = ImageDraw.Draw(image)
     font = get_font(300)
     w, h = image.size
-    bbox = draw.textbbox((0, 0), text, font=font, stroke_width=12)
+    bbox = draw.textbbox((0, 0), text, font=font, stroke_width=15)
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
     text_top = (h - th) // 2
     x = (w - tw) // 2 - bbox[0]
@@ -148,7 +148,7 @@ def draw_title_label(image, text):
     ImageDraw.Draw(banner).rectangle([0, text_top - banner_pad, w, text_top + th + banner_pad], fill=(0, 0, 0, 120))
     image.paste(banner, (0, 0), banner)
 
-    draw.text((x, y), text, font=font, fill=(255, 255, 255, 255), stroke_width=12, stroke_fill=(0, 0, 0, 255))
+    draw.text((x, y), text, font=font, fill=(255, 255, 255, 255), stroke_width=15, stroke_fill=(0, 0, 0, 255))
 
 
 def build_collage(media_key):
