@@ -1,10 +1,9 @@
-"""Build a poster collage from trending TMDB titles and push it as the
-Primary image for a Jellyfin library (Movies / TV Shows).
+"""Build a poster collage from a Jellyfin library's most recently added
+titles and push it as the Primary image for that library (Movies / TV Shows).
 
 Runs once per invocation; schedule repeat runs with an OS-level scheduler
 (see scripts/register_scheduled_task.ps1 for Windows Task Scheduler)."""
 import base64
-import datetime
 import logging
 import os
 import random
@@ -24,26 +23,13 @@ if sys.stdout is not None:  # pythonw.exe has no console, so sys.stdout/stderr a
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", handlers=log_handlers)
 log = logging.getLogger("jellyfin-poster")
 
-TMDB_BASE_URL = "https://api.themoviedb.org/3"
-TMDB_IMG_BASE_URL = "https://image.tmdb.org/t/p/w500"
-
 POSTER_W, POSTER_H = 500, 750
 GRID_COLS, GRID_ROWS = 5, 2
 MIN_POSTERS = 3
 
 MEDIA = {
-    "movies": {
-        "tmdb_endpoint": "movie",
-        "date_field": "primary_release_date",
-        "label": "MOVIES",
-        "collection_type": "movies",
-    },
-    "tvshows": {
-        "tmdb_endpoint": "tv",
-        "date_field": "first_air_date",
-        "label": "TV SHOWS",
-        "collection_type": "tvshows",
-    },
+    "movies": {"item_type": "Movie", "label": "MOVIES", "collection_type": "movies"},
+    "tvshows": {"item_type": "Series", "label": "TV SHOWS", "collection_type": "tvshows"},
 }
 
 
@@ -55,14 +41,11 @@ def require_env(name):
     return value
 
 
-TMDB_TOKEN = require_env("TMDB_TOKEN")
 JF_URL = require_env("JF_URL").rstrip("/")
 JF_API_KEY = require_env("JF_API_KEY")
 
 MOVIES_LIBRARY_NAME = os.environ.get("JF_MOVIES_LIBRARY_NAME", "Movies")
 TV_LIBRARY_NAME = os.environ.get("JF_TV_LIBRARY_NAME", "TV Shows")
-
-MIN_VOTE_COUNT = int(os.environ.get("TMDB_MIN_VOTE_COUNT", "30"))
 
 
 def get_font(size):
@@ -76,56 +59,55 @@ def get_font(size):
     return ImageFont.load_default()
 
 
-def _tmdb_get(path, params, error_context):
-    headers = {"Authorization": f"Bearer {TMDB_TOKEN}", "accept": "application/json"}
+def get_library_item_id(collection_type, display_name):
+    url = f"{JF_URL}/Library/VirtualFolders"
     try:
-        resp = requests.get(f"{TMDB_BASE_URL}{path}", headers=headers, params=params, timeout=20)
+        resp = requests.get(url, headers={"X-Emby-Token": JF_API_KEY}, timeout=20)
         resp.raise_for_status()
-        return resp.json().get("results", [])
     except requests.RequestException as e:
-        log.error("TMDB request failed for %s: %s", error_context, e)
+        log.error("Failed to query Jellyfin libraries: %s", e)
+        return None
+
+    for folder in resp.json():
+        if folder.get("CollectionType") == collection_type or folder.get("Name") == display_name:
+            return folder.get("ItemId")
+
+    log.error("Could not find a %s library named %r on the Jellyfin server", collection_type, display_name)
+    return None
+
+
+def fetch_recent_item_ids(library_item_id, item_type, limit):
+    url = f"{JF_URL}/Items"
+    params = {
+        "ParentId": library_item_id,
+        "IncludeItemTypes": item_type,
+        "Recursive": "true",
+        "SortBy": "DateCreated",
+        "SortOrder": "Descending",
+        "Limit": limit,
+    }
+    try:
+        resp = requests.get(url, headers={"X-Emby-Token": JF_API_KEY}, params=params, timeout=20)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        log.error("Failed to fetch recent items for library %s: %s", library_item_id, e)
         return []
 
-
-def _discover_windows():
-    today = datetime.date.today()
-    last_year = today.year - 1
-    return [
-        ("last 30 days", today - datetime.timedelta(days=30), today),
-        ("last 90 days", today - datetime.timedelta(days=90), today),
-        ("this year", today.replace(month=1, day=1), today),
-        ("last year", datetime.date(last_year, 1, 1), datetime.date(last_year, 12, 31)),
-        ("last 5 years", today - datetime.timedelta(days=365 * 5), today),
-        ("last 10 years", today - datetime.timedelta(days=365 * 10), today),
-        ("all time", None, None),
-    ]
-
-
-def _discover_poster_paths(media_key, start, end):
-    info = MEDIA[media_key]
-    params = {"sort_by": "vote_average.desc", "vote_count.gte": MIN_VOTE_COUNT, "page": 1}
-    if start is not None:
-        params[f"{info['date_field']}.gte"] = start.isoformat()
-        params[f"{info['date_field']}.lte"] = end.isoformat()
-    results = _tmdb_get(f"/discover/{info['tmdb_endpoint']}", params, f"discover:{media_key}")
-    return [item["poster_path"] for item in results if item.get("poster_path")]
-
-
-def fetch_poster_paths(media_key):
-    max_needed = GRID_COLS * GRID_ROWS
     seen = set()
-    paths = []
-    for window_name, start, end in _discover_windows():
-        if len(paths) >= max_needed:
-            break
-        new_paths = [p for p in _discover_poster_paths(media_key, start, end) if p not in seen]
-        if new_paths:
-            log.info("Found %d new result(s) for %s in window '%s'", len(new_paths), media_key, window_name)
-        seen.update(new_paths)
-        paths.extend(new_paths)
-    selected = paths[:max_needed]
-    random.shuffle(selected)
-    return selected
+    item_ids = []
+    for item in resp.json().get("Items", []):
+        item_id = item.get("Id")
+        if item_id and item_id not in seen:
+            seen.add(item_id)
+            item_ids.append(item_id)
+    return item_ids
+
+
+def fetch_item_poster(item_id):
+    url = f"{JF_URL}/Items/{item_id}/Images/Primary"
+    resp = requests.get(url, headers={"X-Emby-Token": JF_API_KEY}, timeout=20)
+    resp.raise_for_status()
+    return resp.content
 
 
 def is_valid_image(image):
@@ -151,26 +133,29 @@ def draw_title_label(image, text):
     draw.text((x, y), text, font=font, fill=(255, 255, 255, 255), stroke_width=12, stroke_fill=(0, 0, 0, 255))
 
 
-def build_collage(media_key):
-    paths = fetch_poster_paths(media_key)
-    if not paths:
-        log.warning("No TMDB results for %s, skipping collage", media_key)
+def build_collage(media_key, library_item_id):
+    info = MEDIA[media_key]
+    max_needed = GRID_COLS * GRID_ROWS
+    item_ids = fetch_recent_item_ids(library_item_id, info["item_type"], max_needed)
+    if not item_ids:
+        log.warning("No recently added items found for %s, skipping collage", media_key)
         return None
 
+    random.shuffle(item_ids)
+
     posters = []
-    for path in paths:
+    for item_id in item_ids:
         try:
-            resp = requests.get(TMDB_IMG_BASE_URL + path, timeout=20)
-            resp.raise_for_status()
-            img = Image.open(BytesIO(resp.content))
+            content = fetch_item_poster(item_id)
+            img = Image.open(BytesIO(content))
             img.load()
             if not is_valid_image(img):
-                log.warning("Downloaded poster %s looks blank, skipping", path)
+                log.warning("Poster for item %s looks blank, skipping", item_id)
                 continue
             fitted = ImageOps.fit(img.convert("RGBA"), (POSTER_W, POSTER_H), Image.Resampling.LANCZOS)
             posters.append(fitted)
         except Exception as e:
-            log.warning("Skipping poster %s: %s", path, e)
+            log.warning("Skipping poster for item %s: %s", item_id, e)
 
     if len(posters) < MIN_POSTERS:
         log.warning("Only %d usable poster(s) for %s, skipping upload", len(posters), media_key)
@@ -181,7 +166,7 @@ def build_collage(media_key):
     for i, poster in enumerate(posters):
         canvas.paste(poster, ((i % GRID_COLS) * POSTER_W, (i // GRID_COLS) * POSTER_H))
 
-    draw_title_label(canvas, MEDIA[media_key]["label"])
+    draw_title_label(canvas, info["label"])
 
     mask = Image.new("L", canvas.size, 0)
     ImageDraw.Draw(mask).rounded_rectangle((0, 0) + canvas.size, radius=60, fill=255)
@@ -192,23 +177,6 @@ def build_collage(media_key):
         return None
 
     return canvas
-
-
-def get_library_item_id(collection_type, display_name):
-    url = f"{JF_URL}/Library/VirtualFolders"
-    try:
-        resp = requests.get(url, headers={"X-Emby-Token": JF_API_KEY}, timeout=20)
-        resp.raise_for_status()
-    except requests.RequestException as e:
-        log.error("Failed to query Jellyfin libraries: %s", e)
-        return None
-
-    for folder in resp.json():
-        if folder.get("CollectionType") == collection_type or folder.get("Name") == display_name:
-            return folder.get("ItemId")
-
-    log.error("Could not find a %s library named %r on the Jellyfin server", collection_type, display_name)
-    return None
 
 
 def upload_library_image(item_id, image):
@@ -235,7 +203,9 @@ def run():
     for media_key, info in MEDIA.items():
         library_name = MOVIES_LIBRARY_NAME if media_key == "movies" else TV_LIBRARY_NAME
         item_id = get_library_item_id(info["collection_type"], library_name)
-        collage = build_collage(media_key)
+        if item_id is None:
+            continue
+        collage = build_collage(media_key, item_id)
         upload_library_image(item_id, collage)
     log.info("Poster refresh complete")
 

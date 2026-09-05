@@ -1,9 +1,9 @@
 # JellyfinPoster
 
-Builds a poster collage from currently trending/top-rated TMDB titles and
-uploads it as the Primary image for your Jellyfin **Movies** and **TV Shows**
-libraries, so the library folder art refreshes automatically instead of
-staying a static icon.
+Builds a poster collage from each library's most recently added titles
+(pulling the artwork straight from Jellyfin itself) and uploads it as the
+Primary image for your **Movies** and **TV Shows** libraries, so the
+library folder art refreshes automatically instead of staying a static icon.
 
 The image is uploaded straight to the Jellyfin server over its API, so once
 it's pushed, every client (tablet, phone, browser, TV app) sees the new
@@ -15,9 +15,9 @@ Double-click **`Start.bat`**. On each run it:
 
 1. Installs Python if it isn't already present (per-user, no admin rights needed).
 2. Installs the project's dependencies.
-3. If `.env` doesn't exist yet, asks for `TMDB_TOKEN`, `JF_URL` and
-   `JF_API_KEY` right in the console (with a hint on where to find each one)
-   and creates `.env` from your answers.
+3. If `.env` doesn't exist yet, asks for `JF_URL` and `JF_API_KEY` right in
+   the console (with a hint on where to find each one) and creates `.env`
+   from your answers.
 4. Registers a daily Windows Scheduled Task (`JellyfinPosterRefresh`) so
    the refresh keeps happening on its own from then on.
 5. Runs the refresh once immediately, so you see it working right away.
