@@ -149,9 +149,19 @@ def is_valid_image(image):
 
 def draw_title_label(image, text):
     draw = ImageDraw.Draw(image)
-    font = get_font(300)
     w, h = image.size
+    max_text_width = w - 160  # keep margin on both sides so long titles (e.g. "HOME MOVIES") don't crowd the edges
+
+    size = 300
+    font = get_font(size)
     bbox = draw.textbbox((0, 0), text, font=font, stroke_width=12)
+    tw = bbox[2] - bbox[0]
+    while tw > max_text_width and size > 100:
+        size -= 10
+        font = get_font(size)
+        bbox = draw.textbbox((0, 0), text, font=font, stroke_width=12)
+        tw = bbox[2] - bbox[0]
+
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
     text_top = (h - th) // 2
     x = (w - tw) // 2 - bbox[0]
