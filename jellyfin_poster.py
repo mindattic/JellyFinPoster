@@ -142,7 +142,7 @@ def draw_glow_label(image, text):
     glow = Image.new("RGBA", image.size, (0, 0, 0, 0))
     glow_draw = ImageDraw.Draw(glow)
     for offset in range(20, 0, -4):
-        glow_draw.text((x, y), text, font=font, fill=(255, 255, 255, 160), stroke_width=offset)
+        glow_draw.text((x, y), text, font=font, fill=(0, 0, 0, 160), stroke_width=offset)
     image.paste(glow.filter(ImageFilter.GaussianBlur(12)), (0, 0), glow)
     draw.text((x, y), text, font=font, fill=(255, 255, 255, 255), stroke_width=10, stroke_fill=(0, 0, 0, 255))
 
