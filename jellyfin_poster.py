@@ -13,7 +13,7 @@ from io import BytesIO
 
 import requests
 from dotenv import load_dotenv
-from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps, ImageStat
+from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageStat
 
 load_dotenv()
 
@@ -133,7 +133,7 @@ def is_valid_image(image):
     return max(stat.stddev) > 5  # rejects near-solid (blank/black/white) images
 
 
-def draw_glow_label(image, text):
+def draw_title_label(image, text):
     draw = ImageDraw.Draw(image)
     font = get_font(300)
     w, h = image.size
@@ -148,11 +148,6 @@ def draw_glow_label(image, text):
     ImageDraw.Draw(banner).rectangle([0, text_top - banner_pad, w, text_top + th + banner_pad], fill=(0, 0, 0, 120))
     image.paste(banner, (0, 0), banner)
 
-    glow = Image.new("RGBA", image.size, (0, 0, 0, 0))
-    glow_draw = ImageDraw.Draw(glow)
-    for offset in range(20, 0, -4):
-        glow_draw.text((x, y), text, font=font, fill=(0, 0, 0, 160), stroke_width=offset)
-    image.paste(glow.filter(ImageFilter.GaussianBlur(12)), (0, 0), glow)
     draw.text((x, y), text, font=font, fill=(255, 255, 255, 255), stroke_width=10, stroke_fill=(0, 0, 0, 255))
 
 
@@ -186,7 +181,7 @@ def build_collage(media_key):
     for i, poster in enumerate(posters):
         canvas.paste(poster, ((i % GRID_COLS) * POSTER_W, (i // GRID_COLS) * POSTER_H))
 
-    draw_glow_label(canvas, MEDIA[media_key]["label"])
+    draw_title_label(canvas, MEDIA[media_key]["label"])
 
     mask = Image.new("L", canvas.size, 0)
     ImageDraw.Draw(mask).rounded_rectangle((0, 0) + canvas.size, radius=60, fill=255)
