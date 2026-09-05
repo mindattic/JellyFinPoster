@@ -142,6 +142,11 @@ def draw_glow_label(image, text):
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
     x, y = (w - tw) // 2, (h - th) // 2
 
+    banner_pad = 40
+    banner = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    ImageDraw.Draw(banner).rectangle([0, y - banner_pad, w, y + th + banner_pad], fill=(0, 0, 0, 120))
+    image.paste(banner, (0, 0), banner)
+
     glow = Image.new("RGBA", image.size, (0, 0, 0, 0))
     glow_draw = ImageDraw.Draw(glow)
     for offset in range(20, 0, -4):
