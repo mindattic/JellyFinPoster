@@ -7,6 +7,7 @@ import base64
 import datetime
 import logging
 import os
+import random
 import sys
 from io import BytesIO
 
@@ -123,7 +124,9 @@ def fetch_poster_paths(media_key):
             log.info("Found %d new result(s) for %s in window '%s'", len(new_paths), media_key, window_name)
         seen.update(new_paths)
         paths.extend(new_paths)
-    return paths[:max_needed]
+    selected = paths[:max_needed]
+    random.shuffle(selected)
+    return selected
 
 
 def is_valid_image(image):
