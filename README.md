@@ -2,8 +2,9 @@
 
 Builds a poster collage from each library's most recently added titles
 (pulling the artwork straight from Jellyfin itself) and uploads it as the
-Primary image for your **Movies** and **TV Shows** libraries, so the
-library folder art refreshes automatically instead of staying a static icon.
+Primary image for your **Movies**, **TV Shows**, **Books**, and **Music**
+libraries, so the library folder art refreshes automatically instead of
+staying a static icon.
 
 The image is uploaded straight to the Jellyfin server over its API, so once
 it's pushed, every client (tablet, phone, browser, TV app) sees the new
@@ -22,10 +23,11 @@ Double-click **`Start.bat`**. On each run it:
    the refresh keeps happening on its own from then on.
 5. Runs the refresh once immediately, so you see it working right away.
 
-Library IDs are looked up automatically by collection type (movies/tvshows),
-so no manual `ParentId` lookup is needed. Only set
-`JF_MOVIES_LIBRARY_NAME`/`JF_TV_LIBRARY_NAME` in `.env` if your libraries use
-non-default names and the automatic lookup doesn't find them.
+Library IDs are looked up automatically by collection type
+(movies/tvshows/books/music), so no manual `ParentId` lookup is needed. Only
+set `JF_MOVIES_LIBRARY_NAME`/`JF_TV_LIBRARY_NAME`/`JF_BOOKS_LIBRARY_NAME`/
+`JF_MUSIC_LIBRARY_NAME` in `.env` if your libraries use non-default names and
+the automatic lookup doesn't find them.
 
 ### Manual path (no `Start.bat`)
 

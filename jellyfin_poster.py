@@ -1,5 +1,5 @@
 """Build a poster collage from a Jellyfin library's most recently added
-titles and push it as the Primary image for that library (Movies / TV Shows).
+titles and push it as the Primary image for that library (Movies / TV / Books / Music).
 
 Runs once per invocation; schedule repeat runs with an OS-level scheduler
 (see scripts/register_scheduled_task.ps1 for Windows Task Scheduler)."""
@@ -29,11 +29,6 @@ GRID_COLS, GRID_ROWS = 5, 2
 MIN_POSTERS = 3
 FETCH_MULTIPLIER = 3  # extra headroom so duplicate-artwork/broken items don't shrink the grid
 
-MEDIA = {
-    "movies": {"item_type": "Movie", "label": "MOVIES", "collection_type": "movies"},
-    "tvshows": {"item_type": "Series", "label": "TV SHOWS", "collection_type": "tvshows"},
-}
-
 
 def require_env(name):
     value = os.environ.get(name)
@@ -46,8 +41,32 @@ def require_env(name):
 JF_URL = require_env("JF_URL").rstrip("/")
 JF_API_KEY = require_env("JF_API_KEY")
 
-MOVIES_LIBRARY_NAME = os.environ.get("JF_MOVIES_LIBRARY_NAME", "Movies")
-TV_LIBRARY_NAME = os.environ.get("JF_TV_LIBRARY_NAME", "TV Shows")
+MEDIA = {
+    "movies": {
+        "item_type": "Movie",
+        "label": "MOVIES",
+        "collection_type": "movies",
+        "library_name": os.environ.get("JF_MOVIES_LIBRARY_NAME", "Movies"),
+    },
+    "tvshows": {
+        "item_type": "Series",
+        "label": "TV",
+        "collection_type": "tvshows",
+        "library_name": os.environ.get("JF_TV_LIBRARY_NAME", "TV Shows"),
+    },
+    "books": {
+        "item_type": "Book",
+        "label": "BOOKS",
+        "collection_type": "books",
+        "library_name": os.environ.get("JF_BOOKS_LIBRARY_NAME", "Books"),
+    },
+    "music": {
+        "item_type": "MusicAlbum",
+        "label": "MUSIC",
+        "collection_type": "music",
+        "library_name": os.environ.get("JF_MUSIC_LIBRARY_NAME", "Music"),
+    },
+}
 
 
 FONT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts", "NotoSans.ttf")
@@ -222,8 +241,7 @@ def upload_library_image(item_id, image):
 def run():
     log.info("Starting poster refresh")
     for media_key, info in MEDIA.items():
-        library_name = MOVIES_LIBRARY_NAME if media_key == "movies" else TV_LIBRARY_NAME
-        item_id = get_library_item_id(info["collection_type"], library_name)
+        item_id = get_library_item_id(info["collection_type"], info["library_name"])
         if item_id is None:
             continue
         collage = build_collage(media_key, item_id)
