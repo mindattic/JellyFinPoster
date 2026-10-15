@@ -45,7 +45,7 @@ Double-click `Start.bat`. On each run it:
 1. Installs Python 3.10 or newer if it is not already present (per-user, no admin rights needed).
 2. Installs the project's dependencies (`requests`, `pillow`, `python-dotenv`).
 3. If `.env` does not exist yet, asks for `JF_URL` and `JF_API_KEY` right in the console (with a hint on where to find each) and creates `.env` from your answers.
-4. Registers a daily Windows Scheduled Task, `JellyfinPosterRefresh`, so the refresh keeps happening on its own.
+4. Registers a daily Windows Scheduled Task, `\MindAttic\JellyFinPoster\JellyfinPosterRefresh`, so the refresh keeps happening on its own.
 5. Runs the refresh once immediately, so you see it working right away.
 
 Then open Jellyfin: the library tiles show the new collages.
@@ -85,10 +85,10 @@ To re-register it by hand (for example after moving the project folder), or to c
 .\scripts\register_scheduled_task.ps1 -Time "06:30"
 ```
 
-The script also takes `-TaskName` and `-PythonExe`. To remove the task:
+The script also takes `-TaskName`, `-TaskPath` and `-PythonExe`. To remove the task:
 
 ```powershell
-Unregister-ScheduledTask -TaskName JellyfinPosterRefresh
+Unregister-ScheduledTask -TaskName JellyfinPosterRefresh -TaskPath '\MindAttic\JellyFinPoster\'
 ```
 
 Because the task runs on this machine, this PC needs to be powered on and able to reach `JF_URL` at run time. If Jellyfin runs on a different machine or a NAS, that machine just needs to be reachable over the network; it does not run the script itself.
