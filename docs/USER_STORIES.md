@@ -22,3 +22,4 @@ _Nothing recorded yet._
 | ID | Date | Type | Status | Summary | Ref |
 |---|---|---|---|---|---|
 | JFP-T1 | 2026-10-12 | docs | closed | Start the permanent ticket log in USER_STORIES.md | — |
+| JFP-T2 | 2026-10-16 | chore | closed | install.ps1 adds this repo's 9 .prose/commands stubs for the shared global commands, so any LLM client finds them | mindattic-agent-standard/install.ps1 run 2026-10-16 |
