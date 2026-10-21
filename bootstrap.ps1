@@ -113,7 +113,9 @@ if (-not (Test-Path (Join-Path $RepoDir ".env"))) {
         "JF_MOVIES_LIBRARY_NAME=Movies"
         "JF_TV_LIBRARY_NAME=TV Shows"
     )
-    Set-Content -Path (Join-Path $RepoDir ".env") -Value $envLines -Encoding utf8
+    # No BOM: Windows PowerShell's "-Encoding utf8" prepends one, and python-dotenv
+    # would then read the first key as "﻿JF_URL" and report JF_URL missing.
+    [System.IO.File]::WriteAllLines((Join-Path $RepoDir ".env"), [string[]]$envLines, (New-Object System.Text.UTF8Encoding $false))
     Write-Host ""
     Write-Host ".env created."
 }
