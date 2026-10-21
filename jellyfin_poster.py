@@ -96,11 +96,12 @@ def get_library_item_id(collection_type, display_name):
     try:
         resp = requests.get(url, headers={"X-Emby-Token": JF_API_KEY}, timeout=20)
         resp.raise_for_status()
-    except requests.RequestException as e:
+        folders = resp.json()
+    except (requests.RequestException, ValueError) as e:  # ValueError: a non-JSON body
         log.error("Failed to query Jellyfin libraries: %s", e)
         return None
 
-    for folder in resp.json():
+    for folder in folders:
         if folder.get("CollectionType") == collection_type or folder.get("Name") == display_name:
             return folder.get("ItemId")
 
@@ -121,13 +122,14 @@ def fetch_recent_item_ids(library_item_id, item_type, limit):
     try:
         resp = requests.get(url, headers={"X-Emby-Token": JF_API_KEY}, params=params, timeout=20)
         resp.raise_for_status()
-    except requests.RequestException as e:
+        items = resp.json().get("Items", [])
+    except (requests.RequestException, ValueError) as e:  # ValueError: a non-JSON body
         log.error("Failed to fetch recent items for library %s: %s", library_item_id, e)
         return []
 
     seen = set()
     item_ids = []
-    for item in resp.json().get("Items", []):
+    for item in items:
         item_id = item.get("Id")
         if item_id and item_id not in seen:
             seen.add(item_id)
