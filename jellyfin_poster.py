@@ -233,8 +233,12 @@ def upload_library_image(item_id, image):
     if image is None or item_id is None:
         return
 
+    # JPEG has no alpha, and convert("RGB") just drops it, which would bring back the
+    # square corners under the rounded mask; flatten onto black so the rounding shows.
+    flattened = Image.new("RGB", image.size, (0, 0, 0))
+    flattened.paste(image, (0, 0), image if image.mode == "RGBA" else None)
     buffer = BytesIO()
-    image.convert("RGB").save(buffer, format="JPEG", quality=85)
+    flattened.save(buffer, format="JPEG", quality=85)
     payload = base64.b64encode(buffer.getvalue())
 
     url = f"{JF_URL}/Items/{item_id}/Images/Primary"
