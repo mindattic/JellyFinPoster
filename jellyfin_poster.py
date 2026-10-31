@@ -15,7 +15,14 @@ import requests
 from dotenv import load_dotenv
 from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageStat
 
+import vault
+
 load_dotenv()
+
+if "--write-settings-manifest" in sys.argv:
+    vault.import_env_once()
+    print(vault.write_manifest())
+    sys.exit(0)
 
 LOG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "jellyfin_poster.log")
 log_handlers = [logging.FileHandler(LOG_PATH, encoding="utf-8")]
@@ -30,41 +37,39 @@ MIN_POSTERS = 3
 FETCH_MULTIPLIER = 3  # extra headroom so duplicate-artwork/broken items don't shrink the grid
 
 
-def require_env(name):
-    value = os.environ.get(name)
-    if not value:
-        log.error("Missing required environment variable: %s (see .env.example)", name)
+# Settings and the Jellyfin key come from MindAttic Vault (edit them in MindAttic.Vault.Desktop);
+# today's .env values are imported on the first run and stay a fallback without Vault.
+vault.import_env_once()
+JF_URL, JF_API_KEY, LIBRARY_NAMES = vault.resolve()
+for _name, _value in (("Jellyfin server URL (JF_URL)", JF_URL), ("Jellyfin key (JF_API_KEY)", JF_API_KEY)):
+    if not _value:
+        log.error("Missing %s: set it in MindAttic Vault (Jellyfin Poster tab / Keys tab) or .env", _name)
         sys.exit(1)
-    return value
-
-
-JF_URL = require_env("JF_URL").rstrip("/")
-JF_API_KEY = require_env("JF_API_KEY")
 
 MEDIA = {
     "movies": {
         "item_type": "Movie",
         "label": "MOVIES",
         "collection_type": "movies",
-        "library_name": os.environ.get("JF_MOVIES_LIBRARY_NAME", "Movies"),
+        "library_name": LIBRARY_NAMES["movies"],
     },
     "tvshows": {
         "item_type": "Series",
         "label": "TV",
         "collection_type": "tvshows",
-        "library_name": os.environ.get("JF_TV_LIBRARY_NAME", "TV Shows"),
+        "library_name": LIBRARY_NAMES["tvshows"],
     },
     "books": {
         "item_type": "Book",
         "label": "BOOKS",
         "collection_type": "books",
-        "library_name": os.environ.get("JF_BOOKS_LIBRARY_NAME", "Books"),
+        "library_name": LIBRARY_NAMES["books"],
     },
     "music": {
         "item_type": "MusicAlbum",
         "label": "MUSIC",
         "collection_type": "music",
-        "library_name": os.environ.get("JF_MUSIC_LIBRARY_NAME", "Music"),
+        "library_name": LIBRARY_NAMES["music"],
     },
 }
 
