@@ -87,7 +87,7 @@ def manifest():
             "order": order, "kind": kind, "readOnly": False, "nullable": True, "default": default,
         })
     return {
-        "schemaVersion": SCHEMA_VERSION, "appId": APP_ID, "displayName": "Jellyfin Poster", "icon": "image",
+        "schemaVersion": SCHEMA_VERSION, "appId": APP_ID, "displayName": "JellyFinPoster", "icon": "image",
         "description": "Builds poster collages for Jellyfin libraries.", "scope": "Roaming",
         "settingsFile": "settings.json", "configurationPrefix": PREFIX, "fields": fields,
         "credentials": [{"providerId": PROVIDER, "displayName": "Jellyfin", "required": True,

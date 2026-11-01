@@ -43,7 +43,7 @@ vault.import_env_once()
 JF_URL, JF_API_KEY, LIBRARY_NAMES = vault.resolve()
 for _name, _value in (("Jellyfin server URL (JF_URL)", JF_URL), ("Jellyfin key (JF_API_KEY)", JF_API_KEY)):
     if not _value:
-        log.error("Missing %s: set it in MindAttic Vault (Jellyfin Poster tab / Keys tab) or .env", _name)
+        log.error("Missing %s: set it in MindAttic Vault (JellyFinPoster tab / Keys tab) or .env", _name)
         sys.exit(1)
 
 MEDIA = {

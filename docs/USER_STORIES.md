@@ -39,3 +39,6 @@ _Nothing recorded yet._
 | JFP-T16 | 2026-10-21 | docs | closed | Update USER_STORIES.md | — |
 | JFP-T17 | 2026-10-22 | docs | closed | Update USER_STORIES.md | — |
 | JFP-T18 | 2026-10-24 | docs | closed | Update USER_STORIES.md | — |
+| JFP-T19 | 2026-10-31 | feature | closed | LAMP: move JellyFinPoster's app-level settings and keys to MindAttic.Vault.Desktop (manifest, LoadOrSeed, shared named keys, cog opens Vault) | bce162d tests/test_vault_settings.py (15/15) |
+| JFP-T20 | 2026-10-31 | fix | wont-do | bootstrap.ps1 registers its own daily task alongside the Scheduler-managed \MindAttic\Scheduler\JellyFinPoster.Refresh, so posters would refresh twice a day; it should reuse or replace the Scheduler task | dup of JFP-T8 |
+| JFP-T21 | 2026-10-31 | chore | open | Vault tab named after the repo: 'Jellyfin Poster' -> 'JellyFinPoster' | M.VALT-T78 |
