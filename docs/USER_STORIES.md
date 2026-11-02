@@ -43,3 +43,5 @@ _Nothing recorded yet._
 | JFP-T20 | 2026-10-31 | fix | wont-do | bootstrap.ps1 registers its own daily task alongside the Scheduler-managed \MindAttic\Scheduler\JellyFinPoster.Refresh, so posters would refresh twice a day; it should reuse or replace the Scheduler task | dup of JFP-T8 |
 | JFP-T21 | 2026-10-31 | chore | closed | Vault tab named after the repo: 'Jellyfin Poster' -> 'JellyFinPoster' | M.VALT-T78 c2b3c40 |
 | JFP-T22 | 2026-10-31 | docs | closed | Update USER_STORIES.md | — |
+| JFP-T23 | 2026-11-02 | docs | open | Adopt MindAttic.Agency docs-site pipeline, publish README to GitHub Pages (HOUSE-LAW-14) | — |
+| JFP-T24 | 2026-11-02 | fix | open | Movies/TV poster collages should draw from the whole library, not just recently added items | user request 2026-11-02 |

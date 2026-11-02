@@ -1,5 +1,6 @@
-"""Build a poster collage from a Jellyfin library's most recently added
-titles and push it as the Primary image for that library (Movies / TV / Books / Music).
+"""Build a poster collage and push it as the Primary image for a Jellyfin library
+(Movies / TV / Books / Music). Movies and TV draw a random sample from the whole
+library; Books and Music draw from the most recently added titles.
 
 Runs once per invocation; schedule repeat runs with an OS-level scheduler
 (see scripts/register_scheduled_task.ps1 for Windows Task Scheduler)."""
@@ -52,24 +53,28 @@ MEDIA = {
         "label": "MOVIES",
         "collection_type": "movies",
         "library_name": LIBRARY_NAMES["movies"],
+        "whole_library": True,
     },
     "tvshows": {
         "item_type": "Series",
         "label": "TV",
         "collection_type": "tvshows",
         "library_name": LIBRARY_NAMES["tvshows"],
+        "whole_library": True,
     },
     "books": {
         "item_type": "Book",
         "label": "BOOKS",
         "collection_type": "books",
         "library_name": LIBRARY_NAMES["books"],
+        "whole_library": False,
     },
     "music": {
         "item_type": "MusicAlbum",
         "label": "MUSIC",
         "collection_type": "music",
         "library_name": LIBRARY_NAMES["music"],
+        "whole_library": False,
     },
 }
 
@@ -114,22 +119,26 @@ def get_library_item_id(collection_type, display_name):
     return None
 
 
-def fetch_recent_item_ids(library_item_id, item_type, limit):
+def fetch_item_ids(library_item_id, item_type, limit, whole_library):
     url = f"{JF_URL}/Items"
     params = {
         "ParentId": library_item_id,
         "IncludeItemTypes": item_type,
         "Recursive": "true",
-        "SortBy": "DateCreated",
-        "SortOrder": "Descending",
         "Limit": limit,
     }
+    if whole_library:
+        # Random sampling across every item in the library, not just the newest ones.
+        params["SortBy"] = "Random"
+    else:
+        params["SortBy"] = "DateCreated"
+        params["SortOrder"] = "Descending"
     try:
         resp = requests.get(url, headers={"X-Emby-Token": JF_API_KEY}, params=params, timeout=20)
         resp.raise_for_status()
         items = resp.json().get("Items", [])
     except (requests.RequestException, ValueError) as e:  # ValueError: a non-JSON body
-        log.error("Failed to fetch recent items for library %s: %s", library_item_id, e)
+        log.error("Failed to fetch items for library %s: %s", library_item_id, e)
         return []
 
     seen = set()
@@ -185,9 +194,11 @@ def draw_title_label(image, text):
 def build_collage(media_key, library_item_id):
     info = MEDIA[media_key]
     max_needed = GRID_COLS * GRID_ROWS
-    item_ids = fetch_recent_item_ids(library_item_id, info["item_type"], max_needed * FETCH_MULTIPLIER)
+    item_ids = fetch_item_ids(
+        library_item_id, info["item_type"], max_needed * FETCH_MULTIPLIER, info["whole_library"]
+    )
     if not item_ids:
-        log.warning("No recently added items found for %s, skipping collage", media_key)
+        log.warning("No items found for %s, skipping collage", media_key)
         return None
 
     random.shuffle(item_ids)

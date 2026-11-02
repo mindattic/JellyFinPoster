@@ -32,7 +32,7 @@ JellyFinPoster pulls the artwork straight from Jellyfin itself and uploads the f
 
 - **Four libraries:** Movies (`Movie` items), TV (`Series`), Books (`Book`) and Music (`MusicAlbum`), labelled MOVIES, TV, BOOKS and MUSIC.
 - **Automatic library lookup** by Jellyfin collection type (`movies`, `tvshows`, `books`, `music`), with display names as a fallback. No manual `ParentId` lookup.
-- **Newest first:** asks Jellyfin for recently added items (sorted by date created), with three times the needed count as headroom, then shuffles them so the grid changes each run.
+- **Movies and TV draw from the whole library** (a random sample, not just the newest additions), so the grid isn't dominated by whatever was added most recently. **Books and Music** still use recently added items. Either way, Jellyfin returns three times the needed count as headroom, then the client shuffles them so the grid changes each run.
 - **Clean grids:** posters are de-duplicated by an MD5 hash of the image bytes (not just by item ID), near-blank images are rejected, and a grid needs at least 3 usable posters. Rows shrink to fit a partial batch.
 - **Readable label:** Noto Sans Bold (bundled in `fonts/`), auto-sized to fit long labels, on a translucent banner with a black outline.
 - **Unattended:** a daily Windows Scheduled Task that runs without a console window and catches up if the PC was asleep or off.
