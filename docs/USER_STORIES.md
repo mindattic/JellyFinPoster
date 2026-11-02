@@ -44,4 +44,4 @@ _Nothing recorded yet._
 | JFP-T21 | 2026-10-31 | chore | closed | Vault tab named after the repo: 'Jellyfin Poster' -> 'JellyFinPoster' | M.VALT-T78 c2b3c40 |
 | JFP-T22 | 2026-10-31 | docs | closed | Update USER_STORIES.md | — |
 | JFP-T23 | 2026-11-02 | docs | open | Adopt MindAttic.Agency docs-site pipeline, publish README to GitHub Pages (HOUSE-LAW-14) | — |
-| JFP-T24 | 2026-11-02 | fix | open | Movies/TV poster collages should draw from the whole library, not just recently added items | user request 2026-11-02 |
+| JFP-T24 | 2026-11-02 | fix | closed | Movies/TV poster collages should draw from the whole library, not just recently added items | 0fa8d09 |
