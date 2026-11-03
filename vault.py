@@ -7,6 +7,7 @@ and remain a fallback on a machine without Vault. Standard library only.
 """
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 
@@ -161,7 +162,10 @@ def _unhealthy(provider):
         cooling = False
         if isinstance(until, str):
             try:
-                cooling = datetime.fromisoformat(until.replace("Z", "+00:00")) > now
+                # Vault (.NET) writes up to 7 fractional digits; Python 3.10's fromisoformat
+                # accepts at most 6, so trim the extra ones instead of treating the key as healthy.
+                until = re.sub(r"(\.\d{6})\d+", r"\1", until.replace("Z", "+00:00"))
+                cooling = datetime.fromisoformat(until) > now
             except ValueError:
                 pass
         if h.get("failed") is True or cooling:

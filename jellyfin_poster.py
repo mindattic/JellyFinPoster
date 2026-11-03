@@ -111,8 +111,13 @@ def get_library_item_id(collection_type, display_name):
         log.error("Failed to query Jellyfin libraries: %s", e)
         return None
 
+    # Collection type first; the display name is only a fallback, so a same-named library of
+    # another type listed earlier can't win over the real one.
     for folder in folders:
-        if folder.get("CollectionType") == collection_type or folder.get("Name") == display_name:
+        if folder.get("CollectionType") == collection_type:
+            return folder.get("ItemId")
+    for folder in folders:
+        if folder.get("Name") == display_name:
             return folder.get("ItemId")
 
     log.error("Could not find a %s library named %r on the Jellyfin server", collection_type, display_name)
