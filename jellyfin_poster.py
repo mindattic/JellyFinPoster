@@ -144,7 +144,7 @@ def fetch_item_ids(library_item_id, item_type, limit, whole_library):
         items = resp.json().get("Items", [])
     except (requests.RequestException, ValueError) as e:  # ValueError: a non-JSON body
         log.error("Failed to fetch items for library %s: %s", library_item_id, e)
-        return []
+        return None  # a request failure, distinct from an empty library ([])
 
     seen = set()
     item_ids = []
@@ -196,12 +196,18 @@ def draw_title_label(image, text):
     draw.text((x, y), text, font=font, fill=(255, 255, 255, 255), stroke_width=12, stroke_fill=(0, 0, 0, 255))
 
 
+class FetchFailed(Exception):
+    """The library's item list could not be fetched (a server/network error, not an empty library)."""
+
+
 def build_collage(media_key, library_item_id):
     info = MEDIA[media_key]
     max_needed = GRID_COLS * GRID_ROWS
     item_ids = fetch_item_ids(
         library_item_id, info["item_type"], max_needed * FETCH_MULTIPLIER, info["whole_library"]
     )
+    if item_ids is None:
+        raise FetchFailed(media_key)
     if not item_ids:
         log.warning("No items found for %s, skipping collage", media_key)
         return None
@@ -253,8 +259,9 @@ def build_collage(media_key, library_item_id):
 
 
 def upload_library_image(item_id, image):
+    """Returns False only when the upload was attempted and failed."""
     if image is None or item_id is None:
-        return
+        return True
 
     # JPEG has no alpha, and convert("RGB") just drops it, which would bring back the
     # square corners under the rounded mask; flatten onto black so the rounding shows.
@@ -271,20 +278,39 @@ def upload_library_image(item_id, image):
         resp = requests.post(url, headers=headers, data=payload, timeout=60)
         resp.raise_for_status()
         log.info("Updated primary image for library item %s", item_id)
+        return True
     except requests.RequestException as e:
         log.error("Failed to upload image for %s: %s", item_id, e)
+        return False
 
 
 def run():
+    """Refreshes every library; returns the keys of the libraries that failed.
+
+    A library with too few usable posters is skipped on purpose (it keeps its image) and is
+    not a failure. A failed library lookup, item fetch or upload is, so the caller can exit
+    nonzero and the scheduled task's RestartCount retry fires.
+    """
     log.info("Starting poster refresh")
+    failed = []
     for media_key, info in MEDIA.items():
         item_id = get_library_item_id(info["collection_type"], info["library_name"])
         if item_id is None:
+            failed.append(media_key)
             continue
-        collage = build_collage(media_key, item_id)
-        upload_library_image(item_id, collage)
-    log.info("Poster refresh complete")
+        try:
+            collage = build_collage(media_key, item_id)
+        except FetchFailed:
+            failed.append(media_key)
+            continue
+        if not upload_library_image(item_id, collage):
+            failed.append(media_key)
+    if failed:
+        log.error("Poster refresh finished with failures: %s", ", ".join(failed))
+    else:
+        log.info("Poster refresh complete")
+    return failed
 
 
 if __name__ == "__main__":
-    run()
+    sys.exit(1 if run() else 0)

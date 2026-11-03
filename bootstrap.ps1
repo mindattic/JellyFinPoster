@@ -121,13 +121,13 @@ if (-not (Test-Path (Join-Path $RepoDir ".env"))) {
 }
 
 Write-Host ""
-Write-Host "Setting up hourly scheduled task..."
+Write-Host "Setting up daily scheduled task..."
 $pythonw = $python -replace 'python\.exe$', 'pythonw.exe'
 if (-not (Test-Path $pythonw)) { $pythonw = $python }
 & (Join-Path $RepoDir "scripts\register_scheduled_task.ps1") -PythonExe $pythonw
 
 Write-Host ""
-Write-Host "Refreshing Movies and TV Shows library artwork now..."
+Write-Host "Refreshing Movies, TV Shows, Books and Music library artwork now..."
 Write-Host ""
 
 & $python (Join-Path $RepoDir "jellyfin_poster.py")
